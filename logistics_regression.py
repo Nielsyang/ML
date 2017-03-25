@@ -13,31 +13,29 @@ class logistic_regression(object):
         self.beta2 = beta2
     
     def sigmoid(self, x):
-        return np.exp(-x)/(1+np.exp(-x))
+        return 1/(1+np.exp(-x))
         
     def forward(self, data, w, b):
-        return self.sigmoid(np.dot(data, w)+b)
+        return 1-self.sigmoid(np.dot(data, w)+b)
 
     def get_batch_data(self, idx):
         if idx+self.batch_size > self.train_size:
             np.random.shuffle(self.train_data)
-            return self.train_data[:self.batch_size], self.train_label[:self.batch_size]
+            return self.train_data[:self.batch_size,:-1], self.train_data[:self.batch_size,-1], self.batch_size
         else:
-            return self.train_data[idx:idx+self.batch_size], self.train_label[idx:idx+self.batch_size]
+            return self.train_data[idx:idx+self.batch_size,:-1], self.train_data[idx:idx+self.batch_size,-1], idx+self.batch_size
 
     def backward(self,data,label):
+        """use Adam optimizer"""
         self.logits = self.forward(data, self.w, self.b)
-        import pdb
-        #pdb.set_trace()
         for i in xrange(self.feature_num):
             dw = 0
             for j in xrange(self.batch_size):
                 dw += -data[j][i]*(self.logits[j]-label[j])
-            # pdb.set_trace()
+            # gradient check
             # e = 1e-4
             # w1 = np.array([self.w[0]+e, self.w[1]])
             # w2 = np.array([self.w[0]-e, self.w[1]])
-            # pdb.set_trace()
             # print (self.cost(self.batch_data, self.batch_label, w1, self.b)-self.cost(self.batch_data, self.batch_label, w2, self.b))/(2*e)
             self.momentum_w[i] = self.beta1*self.momentum_w[i] + (1-self.beta1)*dw
             self.v_w[i] = self.beta2*self.v_w[i] + (1-self.beta2)*(dw**2)
@@ -61,16 +59,12 @@ class logistic_regression(object):
         self.train_data = []
         self.train_label = []
         with open(train_file, 'r') as f:
-            import pdb
-            #pdb.set_trace()
             for line in f.readlines():
-                self.train_data.append(line.split(',')[:-1])
-                self.train_label.append(line.split(',')[-1][:-1])
+                self.train_data.append(line[:-1].split(','))
 
         self.train_data = np.array(self.train_data).astype(np.float64)
-        self.train_label = np.array(self.train_label).astype(np.float64).astype(np.int32)
         self.train_size = len(self.train_data)
-        self.w = (np.random.randn(self.feature_num,)*0.5).astype(np.float64)
+        self.w = np.random.randn(self.feature_num,)
         self.b = 0
         self.momentum_w = np.zeros_like(self.w)
         self.momentum_b = 0
@@ -78,17 +72,14 @@ class logistic_regression(object):
         self.v_b = 0
         idx = 0
         for i in xrange(self.epoch*self.train_size/self.batch_size):
-            self.batch_data,self.batch_label = self.get_batch_data(idx)
-            idx += self.batch_size
+            self.batch_data,self.batch_label,idx = self.get_batch_data(idx)
             self.backward(self.batch_data, self.batch_label)
             accuracy = 0
-            #pdb.set_trace()
             for j in xrange(self.batch_size):
                 if (self.logits[j] > 0.5 and self.batch_label[j] == 1) or (self.logits[j] < 0.5 and self.batch_label[j] == 0):
                     accuracy += 1
             print 'Mini batch accuracy: %.2f' % (accuracy*1.0/self.batch_size)
-            print self.w, self.b
-        #print self.w,self.b
+        print self.w, self.b
 
 if __name__ == '__main__':
     lr = logistic_regression(feature_num=2, dataset='fake_data')
